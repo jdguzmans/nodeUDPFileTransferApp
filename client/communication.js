@@ -1,11 +1,11 @@
 const config = require('../config')
-
+const fs = require('fs')
 const dgram = require('dgram')
 const client = dgram.createSocket('udp4')
 
-exports.listFiles = () => {
+exports.listRemoteFiles = () => {
   return new Promise((resolve, reject) => {
-    let message = Buffer.from('li')
+    let message = Buffer.from('l')
     client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
       if (err) reject(err)
       else {
@@ -17,7 +17,24 @@ exports.listFiles = () => {
             files.push(file)
           })
           resolve(files)
-          client.close()
+        })
+      }
+    })
+  })
+}
+
+exports.getFile = (filename) => {
+  return new Promise((resolve, reject) => {
+    let message = Buffer.from('g ' + filename)
+    client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
+      if (err) reject(err)
+      else {
+        client.on('message', (msg, rinfo) => {
+          let wStream = fs.createWriteStream('./files/' + filename)
+          wStream.write(msg)
+          wStream.end()
+          console.log('Transfer complete')
+          resolve()
         })
       }
     })

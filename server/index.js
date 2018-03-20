@@ -11,7 +11,11 @@ server.on('error', (err) => {
 server.on('message', (msg, rinfo) => {
   console.log('server got: ' + msg + ' from ' + rinfo.address + ':' + rinfo.port)
   let msgString = msg.toString()
-  if (msgString === 'li') {
+  let msgParts = msgString.split(' ')
+  let command = msgParts[0]
+  let param = msgParts[1]
+
+  if (command === 'l') {
     fs.readdir('./files', (err, files) => {
       if (err) throw err
       let ansString = ''
@@ -26,6 +30,15 @@ server.on('message', (msg, rinfo) => {
       server.send(ans, 0, ans.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
         // else server.close()
+      })
+    })
+  } else if (command === 'g') {
+    let filename = param
+    fs.readFile('./files/' + filename, (err, data) => {
+      if (err) throw err
+      server.send(data, 0, data.length, rinfo.port, rinfo.address, (err, bytes) => {
+        if (err) throw err
+        console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
       })
     })
   }
