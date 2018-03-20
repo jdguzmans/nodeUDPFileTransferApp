@@ -6,7 +6,7 @@ const questions = [{
   type: 'rawlist',
   name: 'option',
   message: 'What do you want to do?',
-  choices: ['List remote files', 'List local files', 'Get a file', 'Send a file', 'Exit']
+  choices: ['List remote files', 'List local files', 'Get a file', 'Send a file', 'Exit'] 
 }]
 
 inquirer.prompt(questions)
