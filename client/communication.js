@@ -1,10 +1,11 @@
 const config = require('../config')
 const fs = require('fs')
 const dgram = require('dgram')
-const client = dgram.createSocket('udp4')
+let client = null
 
 exports.listRemoteFiles = () => {
   return new Promise((resolve, reject) => {
+    client = dgram.createSocket('udp4')
     let message = Buffer.from('l')
     client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
       if (err) reject(err)
@@ -16,6 +17,7 @@ exports.listRemoteFiles = () => {
           msgParts.forEach(file => {
             files.push(file)
           })
+          client.close()
           resolve(files)
         })
       }
@@ -25,6 +27,7 @@ exports.listRemoteFiles = () => {
 
 exports.getFile = (filename) => {
   return new Promise((resolve, reject) => {
+    client = dgram.createSocket('udp4')
     let message = Buffer.from('g ' + filename)
     client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
       if (err) reject(err)
@@ -34,13 +37,15 @@ exports.getFile = (filename) => {
         let filebuffers = []
         let totalFragments = null
         client.on('message', (msg, rinfo) => {
-          let msgString = msg.toString()
-          let msgParts = msgString.split(' ')
-          if (msgParts.length === 3 && msgParts[0] === 'datafile') {
-            buffersize = Number(msgParts[2])
-            filesize = Number(msgParts[1])
-            totalFragments = (filesize % buffersize) !== 0 ? parseInt(filesize / buffersize) + 1 : parseInt(filesize / buffersize)
-            console.log('File parameters recieved \nBuffer size : ' + buffersize + ' File size' + filesize + 'Number Fragments ' + totalFragments)
+          if (buffersize === null) {
+            let msgString = msg.toString()
+            let msgParts = msgString.split(' ')
+            if (msgParts.length === 3 && msgParts[0] === 'datafile') {
+              buffersize = Number(msgParts[2])
+              filesize = Number(msgParts[1])
+              totalFragments = (filesize % buffersize) !== 0 ? parseInt(filesize / buffersize) + 1 : parseInt(filesize / buffersize)
+              console.log('File parameters recieved \nBuffer size : ' + buffersize + ' File size' + filesize + 'Number Fragments ' + totalFragments)
+            }
           } else {
             filebuffers.push(msg)
             console.log('Number of fragments recieved ' + filebuffers.length + ' of ' + totalFragments)
@@ -50,6 +55,7 @@ exports.getFile = (filename) => {
               wStream.write(buffersTotal)
               wStream.end()
               console.log('Transfer complete file saved')
+              client.close()
               resolve()
             }
           }
