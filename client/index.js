@@ -11,29 +11,29 @@ function home () {
   }]
 
   inquirer.prompt(question)
-  .then(answer => {
-    if (answer.option === 'List remote files') {
-      communication.listRemoteFiles()
-      .then(files => {
-        files.forEach(file => {
-          console.log('- ' + file)
+    .then(answer => {
+      if (answer.option === 'List remote files') {
+        communication.listRemoteFiles()
+          .then(files => {
+            files.forEach(file => {
+              console.log('- ' + file)
+            })
+            home()
+          })
+          .catch(e => {
+            console.log(e)
+          })
+      } else if (answer.option === 'List local files') {
+        fs.readdir('./files', (err, files) => {
+          if (err) throw err
+          files.forEach((file, i) => {
+            console.log('- ' + file)
+          })
         })
-        home()
-      })
-      .catch(e => {
-        console.log(e)
-      })
-    } else if (answer.option === 'List local files') {
-      fs.readdir('./files', (err, files) => {
-        if (err) throw err
-        files.forEach((file, i) => {
-          console.log('- ' + file)
-        })
-      })
-    } else if (answer.option === 'Get a file') {
-      getAFile()
-    }
-  })
+      } else if (answer.option === 'Get a file') {
+        getAFile()
+      }
+    })
 }
 
 function getAFile () {
@@ -44,12 +44,12 @@ function getAFile () {
   }]
 
   inquirer.prompt(question)
-  .then(answer => {
-    communication.getFile(answer.filename)
-    .then(() => {
-      home()
+    .then(answer => {
+      communication.getFile(answer.filename)
+        .then(() => {
+          home()
+        })
     })
-  })
 }
 
 home()
