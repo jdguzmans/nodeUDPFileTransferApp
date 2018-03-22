@@ -2,7 +2,16 @@ const config = require('../config')
 const fs = require('fs')
 const dgram = require('dgram')
 const server = dgram.createSocket('udp4')
-const maxBufferSize = 25000
+const maxBufferSize = config.maxBufferSize
+const doWhilst = require('async/doWhilst')
+
+server.on('listening', () => {
+  server.setSendBufferSize(maxBufferSize)
+  const address = server.address()
+  console.log('UDP server listening on ' + address.address + ':' + address.port + ' buffersize: ' + maxBufferSize + 'B')
+})
+
+server.bind(config.server.port, config.server.host)
 
 server.on('error', (err) => {
   console.log('server error: \n' + err.stack)
@@ -35,52 +44,42 @@ server.on('message', (msg, rinfo) => {
     })
   } else if (command === 'g') {
     let filename = param
-    fs.readFile('./files/' + filename, (err, data) => {
+    fs.readFile('./files/' + filename, (err, file) => {
       if (err) throw err
-      let ans = Buffer.from('datafile ' + data.length + ' ' + maxBufferSize)
+      let ans = Buffer.from('f ' + file.length + ' ' + maxBufferSize)
       server.send(ans, 0, ans.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
-        console.log('file sent init file size: ' + data.length)
-        if (data.length > maxBufferSize) {
+        if (file.length > maxBufferSize) {
           let dataTransfered = 0
-          let dataSize = data.length
+          let dataSize = file.length
           let fragments = []
-          console.log('Prepering fragmentation ... ')
+          console.log('preparing fragmentation ... ')
+
           while (dataTransfered !== dataSize) {
             let max = (dataTransfered + maxBufferSize) < dataSize ? dataTransfered + maxBufferSize : dataSize
-            fragments.push(data.slice(dataTransfered, max))
+            fragments.push(file.slice(dataTransfered, max))
             dataTransfered = max
           }
-          console.log('total fragments to send: ' + fragments.length)
+          console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B fragments ' + fragments.length)
 
-          var i = 0
-          var iteration = setInterval(function () {
+          let i = 0
+          doWhilst((cb) => {
             server.send(fragments[i], 0, fragments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
               if (err) throw err
               console.log('file fragments sent ' + (i + 1) + ' of ' + fragments.length)
+              i++
+              cb()
             })
-            i++
-            if (i === fragments.length) {
-              clearInterval(iteration)
-            }
-          }, 50)
-
-          // for (let i = 0; i < fragments.length; i++) {
-          //   setTimeout((i) => {
-          //     console.log('1')
-          //   }, 1000)
-          // }
-          // fragments.map((item, index) => {
-          //   setTimeout(function () {
-          //     server.send(item, 0, item.length, rinfo.port, rinfo.address, (err, bytes) => {
-          //       if (err) throw err
-          //       console.log('file fragments sent ' + (index + 1) + ' of ' + fragments.length)
-          //     })
-          //   }, 5000)
-          // })
-          console.log('file transfer completed ')
+          },
+          () => {
+            return i !== fragments.length
+          },
+          (err) => {
+            if (err) throw err
+            console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
+          })
         } else {
-          server.send(data, 0, data.length, rinfo.port, rinfo.address, (err, bytes) => {
+          server.send(file, 0, file.length, rinfo.port, rinfo.address, (err, bytes) => {
             if (err) throw err
             console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
           })
@@ -89,11 +88,3 @@ server.on('message', (msg, rinfo) => {
     })
   }
 })
-
-server.on('listening', () => {
-  server.setSendBufferSize(maxBufferSize)
-  const address = server.address()
-  console.log('UDP server listening on ' + address.address + ':' + address.port + ' buffersize: ' + server.getSendBufferSize())
-})
-
-server.bind(config.server.port, config.server.host)

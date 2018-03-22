@@ -40,11 +40,11 @@ exports.getFile = (filename) => {
           if (buffersize === null) {
             let msgString = msg.toString()
             let msgParts = msgString.split(' ')
-            if (msgParts.length === 3 && msgParts[0] === 'datafile') {
+            if (msgParts.length === 3 && msgParts[0] === 'f') {
               buffersize = Number(msgParts[2])
               filesize = Number(msgParts[1])
               totalFragments = (filesize % buffersize) !== 0 ? parseInt(filesize / buffersize) + 1 : parseInt(filesize / buffersize)
-              console.log('File parameters recieved \nBuffer size : ' + buffersize + ' File size' + filesize + 'Number Fragments ' + totalFragments)
+              console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + filesize + 'B fragments ' + totalFragments)
             }
           } else {
             filebuffers.push(msg)
