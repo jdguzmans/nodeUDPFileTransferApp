@@ -3,4 +3,4 @@ exports.server = {
   host: 'localhost'
 }
 
-exports.maxBufferSize = 1024
+exports.maxBufferSize = 524

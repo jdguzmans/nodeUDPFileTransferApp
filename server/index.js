@@ -23,7 +23,6 @@ server.on('message', (msg, rinfo) => {
   let msgString = msg.toString()
   let msgParts = msgString.split(' ')
   let command = msgParts[0]
-  let param = msgParts[1]
 
   if (command === 'l') {
     fs.readdir('./files', (err, files) => {
@@ -43,7 +42,7 @@ server.on('message', (msg, rinfo) => {
       })
     })
   } else if (command === 'g') {
-    let filename = param
+    let filename = msgParts[1]
     fs.readFile('./files/' + filename, (err, file) => {
       if (err) throw err
       let ans = Buffer.from('f ' + file.length + ' ' + maxBufferSize)
@@ -85,6 +84,53 @@ server.on('message', (msg, rinfo) => {
           })
         }
       })
+    })
+  } else if (command === 'f') {
+    let filename = msgParts[1]
+    let filesize = msgParts[2]
+    let fragments = msgParts[3]
+
+    let received = 0
+
+    let filebuffers = new Array(fragments)
+
+    server.on('message', (msg, rinfo) => {
+      let obj = JSON.parse(msg.toString())
+
+      let number = obj.n
+      let timeStamp = obj.ts
+      let fragment = Buffer.from(obj.ff.data)
+
+      filebuffers.push(fragment)
+      received++
+
+      if (received === (fragments - 1)) {
+        let wStream = fs.createWriteStream('./files/' + filename)
+        let buffersTotal = Buffer.concat(filebuffers, filesize)
+        wStream.write(buffersTotal)
+        wStream.end()
+        console.log('done')
+      }
+    })
+  } else if (command === 'o') {
+    let number = msgParts[1]
+    let i = 0
+    let filename = rinfo.address.replace('.', '_') + '_' + rinfo.port
+    let wStream = fs.createWriteStream('./results/' + filename)
+    server.on('message', (msg, rinfo) => {
+      let obj = JSON.parse(msg.toString())
+      wStream.write(obj.n + ' ' + (new Date().getTime() - obj.ts) + ' ms\n')
+      let ack = {
+        n: obj.n
+      }
+      let ackS = JSON.stringify(ack)
+      server.send(ackS, 0, ackS.length, rinfo.port, rinfo.address, (err, bytes) => {
+        if (err) throw err
+      })
+      i++
+      if (i === number) {
+        wStream.end()
+      }
     })
   }
 })

@@ -7,7 +7,7 @@ function home () {
     type: 'rawlist',
     name: 'option',
     message: 'What do you want to do?',
-    choices: ['List remote files', 'List local files', 'Get a file', 'Send a file', 'Exit']
+    choices: ['List remote files', 'List local files', 'Get a file', 'Send a file', 'Send objects', 'Exit']
   }]
 
   inquirer.prompt(question)
@@ -32,6 +32,29 @@ function home () {
         })
       } else if (answer.option === 'Get a file') {
         getAFile()
+      } else if (answer.option === 'Send a file') {
+        communication.sendFile('dummy.pdf')
+        .then(() => {
+          home()
+        })
+      } else if (answer.option === 'Send objects') {
+        let qs = [{
+          type: 'input',
+          name: 'number',
+          message: 'How many objects?',
+          validate: (value) => {
+            var valid = !isNaN(parseFloat(value))
+            return valid || 'Please enter a number'
+          },
+          filter: Number
+        }]
+        inquirer.prompt(qs).then(ans => {
+          let number = ans.number
+          communication.sendObjects(number)
+          .then(() => {
+            home()
+          })
+        })
       }
     })
 }
