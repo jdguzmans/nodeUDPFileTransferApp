@@ -18,7 +18,6 @@ exports.listRemoteFiles = () => {
           msgParts.forEach(file => {
             files.push(file)
           })
-          client.close()
           resolve(files)
         })
       }
@@ -55,7 +54,6 @@ exports.getFile = (filename) => {
               wStream.write(buffersTotal)
               wStream.end()
               console.log('Transfer complete file saved')
-              client.close()
               resolve()
             }
           }
