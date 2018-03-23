@@ -3,9 +3,9 @@ const fs = require('fs')
 const dgram = require('dgram')
 const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
-let client = dgram.createSocket('udp4')
-
+let client = null
 exports.listRemoteFiles = () => {
+  client = dgram.createSocket('udp4')
   return new Promise((resolve, reject) => {
     let message = Buffer.from('l')
     client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
@@ -18,6 +18,7 @@ exports.listRemoteFiles = () => {
           msgParts.forEach(file => {
             files.push(file)
           })
+          client.close()
           resolve(files)
         })
       }
@@ -26,6 +27,7 @@ exports.listRemoteFiles = () => {
 }
 
 exports.getFile = (filename) => {
+  client = dgram.createSocket('udp4')
   return new Promise((resolve, reject) => {
     let message = Buffer.from('g ' + filename)
     client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
@@ -54,6 +56,7 @@ exports.getFile = (filename) => {
               wStream.write(buffersTotal)
               wStream.end()
               console.log('Transfer complete file saved')
+              client.close()
               resolve()
             }
           }
@@ -127,7 +130,7 @@ exports.sendObjects = (number) => {
           n: i,
           ts: new Date().getTime()
         }
-        let toSendS = JSON.stringify(toSend)
+        let toSendS = Buffer.from(JSON.stringify(toSend))
         client.send(toSendS, 0, toSendS.length, config.server.port, config.server.host, (err, bytes) => {
           if (err) throw err
           client.on('message', (msg, rinfo) => {
@@ -151,9 +154,8 @@ exports.sendObjects = (number) => {
   })
 }
 
-sendObject = function (i, n, cb) {
-
-}
+// sendObject = function (i, n, cb) {
+// }
 
 // client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
 //   if (err) throw err

@@ -34,9 +34,9 @@ function home () {
         getAFile()
       } else if (answer.option === 'Send a file') {
         communication.sendFile('dummy.pdf')
-        .then(() => {
-          home()
-        })
+          .then(() => {
+            home()
+          })
       } else if (answer.option === 'Send objects') {
         let qs = [{
           type: 'input',
@@ -51,9 +51,9 @@ function home () {
         inquirer.prompt(qs).then(ans => {
           let number = ans.number
           communication.sendObjects(number)
-          .then(() => {
-            home()
-          })
+            .then(() => {
+              home()
+            })
         })
       }
     })
