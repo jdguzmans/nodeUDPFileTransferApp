@@ -3,7 +3,7 @@ exports.server = {
   host: 'localhost'
 }
 
-exports.maxBufferSize = 60024
+exports.maxBufferSize = 512
 exports.objectDelay = 10
 exports.fileDelay = 0.5
 // miliseconds

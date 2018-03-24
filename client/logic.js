@@ -87,61 +87,49 @@ exports.getFile = (filename) => {
 function process (resolve, FIFO, filebuffers, filename, fileSize, reject) {
   // reciving segments re start timeout
   // putting segments in their position msg.slice(0, 1) has the position
-  let segmentsReceive = 0
   console.log('processing segments received ...')
-  doWhilst((cb) => {
-    var msg = FIFO.pop()
+  while (FIFO.length > 0) {
+    var msg = FIFO.shift()
     let index = Number(msg.slice(0, 6)) - 100001
     if (filebuffers[index] === undefined) {
       filebuffers[index] = (msg.slice(6, msg.length))
-      segmentsReceive++
-    } else {
-      console.log('repetido')
     }
-    cb()
-  },
-  () => {
-    return FIFO.length > 0
-  },
-  (err) => {
-    if (err) throw err
-
-    if (filebuffers.length === segmentsReceive) {
-      let wStream = fs.createWriteStream('./files/' + filename)
-      var buffersTotal = Buffer.concat(filebuffers, fileSize)
-      wStream.write(buffersTotal)
-      wStream.end()
-      console.log('Transfer complete file saved')
-      client.close()
-      resolve()
-    } else {
-      console.log('There are missing segments' + segmentsReceive)
-      console.log('Asking for segments' + filebuffers.length)
-      //  console.log('Asking for segments' + filebuffers[1560])
-      let i = 0
-      let missing = []
-      doWhilst((cb) => {
-        if (filebuffers[i] === undefined) {
-          missing.push(i)
-        }
-        i++
-        cb()
-      },
-      () => {
-        return i !== filebuffers.length
-      },
-      (err) => {
-        if (err) throw err
-        console.log('para pedir ' + missing.length)
+  }
+  if (FIFO.length === 0) {
+    console.log(' 2 processing segments received ...')
+    let i = 0
+    let missing = []
+    doWhilst((cb) => {
+      if (filebuffers[i] === undefined) {
+        missing.push(i)
+      }
+      console.log(' 3 ' + filebuffers.length - i)
+      i++
+      cb()
+    },
+    () => {
+      return i !== filebuffers.length
+    },
+    (err) => {
+      if (err) throw err
+      if (missing.lenght !== 0) {
+        console.log('Asking for ' + missing.lenght + '  lost segments')
         let message = Buffer.from('gi ' + missing.toString())
-        console.log('tam mensaje ' + message.length)
         client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
           if (err) reject(err)
           console.log('envio pedido de ' + missing.length)
         })
-      })
-    }
-  })
+      } else {
+        let wStream = fs.createWriteStream('./files/' + filename)
+        var buffersTotal = Buffer.concat(filebuffers, fileSize)
+        wStream.write(buffersTotal)
+        wStream.end()
+        console.log('Transfer complete file saved')
+        client.close()
+        resolve()
+      }
+    })
+  }
 }
 
 exports.sendFile = (filename) => {
@@ -213,7 +201,7 @@ exports.sendObjects = (number) => {
         // Object Iteration
         let toSendS = 'oi ' + JSON.stringify(toSendO)
         let toSendB = Buffer.from(toSendS)
-        console.log(' tmanio ' + toSendB.length)
+        console.log(' tamanio ' + toSendB.length)
         client.send(toSendB, 0, toSendB.length, config.server.port, config.server.host, (err, bytes) => {
           if (err) throw err
           i++
