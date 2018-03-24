@@ -81,29 +81,12 @@ server.on('message', (msg, rinfo) => {
           dataTransfered = max
           index++
         }
-        // Setting TimeOut to eventualy remove the client
-        const timer = setTimeout(() => {
-          let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-          if (stateIndex !== 0) {
-            deleteStateByIndex(stateIndex)
-            console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
-          }
-        }, dataSize * fileDelay)
-        console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
-        // seve the state of the client
-        states.push({
-          type: 'g',
-          host: rinfo.address,
-          port: rinfo.port,
-          timeout: timer,
-          segments: segments
-        })
         let i = 0
         doWhilst((cb) => {
           // console.log('size !! ' + segments[i].length)
           server.send(segments[i], 0, segments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
             if (err) throw err
-            console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
+            // console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
             i++
             cb()
           })
@@ -113,6 +96,23 @@ server.on('message', (msg, rinfo) => {
         },
         (err) => {
           if (err) throw err
+          // Setting TimeOut to eventualy remove the client
+          let timer = setTimeout(() => {
+            let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
+            if (stateIndex !== 0) {
+              deleteStateByIndex(stateIndex)
+              console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
+            }
+          }, 15000)
+          // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
+          // seve the state of the client
+          states.push({
+            type: 'g',
+            host: rinfo.address,
+            port: rinfo.port,
+            timeout: timer,
+            segments: segments
+          })
           console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
         })
       })
@@ -120,26 +120,18 @@ server.on('message', (msg, rinfo) => {
   } else if (command === 'gi') {
     // client asking for lost segments
     let segmentsIndex = msgParts[1]
-    console.log('enter gi ' + segmentsIndex)
+    // console.log('enter gi ' + segmentsIndex)
     let nSegments = JSON.parse('[' + segmentsIndex + ']')
-    console.log('enter gi ' + nSegments)
+    // console.log('enter gi ' + nSegments)
     let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
     clearTimeout(state.timeout)
     // Setting TimeOut to eventualy remove the client
-    const timer = setTimeout(() => {
-      let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-      if (stateIndex !== 0) {
-        deleteStateByIndex(stateIndex)
-        console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
-      }
-    }, nSegments * objectDelay)
-    state.timeout = timer
     let file = state.segments
     let i = 0
     doWhilst((cb) => {
       server.send(file[nSegments[i]], 0, file[nSegments[i]].length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
-        console.log('file segments resent ' + nSegments[i])
+        //  console.log('file segments resent ' + nSegments[i])
         i++
         cb()
       })
@@ -149,7 +141,15 @@ server.on('message', (msg, rinfo) => {
     },
     (err) => {
       if (err) throw err
-      console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
+      // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
+      let timer = setTimeout(() => {
+        let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
+        if (stateIndex !== 0) {
+          deleteStateByIndex(stateIndex)
+          console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
+        }
+      }, 2000)
+      state.timeout = timer
     })
   } else if (command === 'o') {
     // OBJECT START

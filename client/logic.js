@@ -9,6 +9,7 @@ var Dequeue = require('dequeue')
 const crypto = require('crypto')
 let hash = null
 let client = null
+let timery = null
 
 exports.listLocalFiles = () => {
   return new Promise((resolve, reject) => {
@@ -54,7 +55,13 @@ exports.getFile = (filename) => {
         let totalsegments = null
         let beginTime = null
         let fileHash = null
-        let timer = null
+        timery = setTimeout(() => {
+          console.log('Wating for jjj server time out')
+          console.log('Plase re-try')
+          client.close()
+          resolve()
+        }, timeOut)
+        let timer2 = null
         let FIFO = new Dequeue()
         // msg with initial info
         client.on('message', (msg, rinfo) => {
@@ -68,17 +75,23 @@ exports.getFile = (filename) => {
               fileHash = msgParts[4]
               totalsegments = (fileSize % (buffersize - 6)) !== 0 ? parseInt(fileSize / (buffersize - 6)) + 1 : parseInt(fileSize / (buffersize - 6))
               filebuffers = new Array(totalsegments)
-              timer = setTimeout(() => {
-                console.log('client retry getting lost segments get | in the FIFO ' + FIFO.length)
+              clearTimeout(timery)
+              timery = setTimeout(() => {
+                console.log('Wating for jjj server time out')
+                console.log('Plase re-try')
+                client.close()
+                resolve()
               }, timeOut)
               console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + fileSize + 'B segments ' + totalsegments + ' begin time transmition ' + new Date(beginTime))
             }
           } else {
             FIFO.push(msg)
-            clearTimeout(timer)
-            timer = setTimeout(() => {
+            clearTimeout(timery)
+            if (timer2 !== null) clearTimeout(timer2)
+            timer2 = setTimeout(() => {
+              console.log('Reasfasdfljba ...')
               process(resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime)
-            }, timeOut)
+            }, timeOut / 5)
             console.log('Receiving data ...')
           }
         })
@@ -90,6 +103,7 @@ exports.getFile = (filename) => {
 function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime) {
   // reciving segments re start timeout
   // putting segments in their position msg.slice(0, 1) has the position
+  clearTimeout(timery)
   while (FIFO.length > 0) {
     var msg = FIFO.shift()
     let index = Number(msg.slice(0, 6)) - 100001
@@ -151,7 +165,6 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
         doWhilst((b) => {
           client.send(msgSegments[i], 0, msgSegments[i].length, config.server.port, config.server.host, (err, bytes) => {
             if (err) throw err
-            console.log('asking for lost segments ..')
             i++
             b()
           })
@@ -161,8 +174,15 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
         },
         (err) => {
           if (err) throw err
+          timery = setTimeout(() => {
+            console.log('Wating for s3rver time out')
+            console.log('Plase re-try')
+            client.close()
+            resolve()
+          }, timeOut * 2)
         })
       } else {
+        clearTimeout(timery)
         console.log('Transfer ended')
         let totalTime = new Date((new Date().getTime() - beginTime))
         let seconds = totalTime.getSeconds()
