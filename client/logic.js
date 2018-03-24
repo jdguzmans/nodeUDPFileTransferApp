@@ -4,6 +4,8 @@ const dgram = require('dgram')
 const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
+const timeOut = config.timeOutToWaitForServer
+var Dequeue = require('dequeue')
 let client = null
 
 exports.listLocalFiles = () => {
@@ -45,35 +47,100 @@ exports.getFile = (filename) => {
       if (err) reject(err)
       else {
         let buffersize = null
-        let filesize = null
-        let filebuffers = []
-        let totalFragments = null
+        let fileSize = null
+        let filebuffers = null
+        let totalsegments = null
+        let beginTime = null
+        let segmentsReceive = 0
+        let timer = null
+        let FIFO = new Dequeue()
+        // msg with initial info
         client.on('message', (msg, rinfo) => {
           if (buffersize === null) {
             let msgString = msg.toString()
             let msgParts = msgString.split(' ')
-            if (msgParts.length === 3 && msgParts[0] === 'f') {
+            if (msgParts.length === 4 && msgParts[0] === 'f') {
               buffersize = Number(msgParts[2])
-              filesize = Number(msgParts[1])
-              totalFragments = (filesize % buffersize) !== 0 ? parseInt(filesize / buffersize) + 1 : parseInt(filesize / buffersize)
-              console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + filesize + 'B fragments ' + totalFragments)
+              fileSize = Number(msgParts[1])
+              beginTime = new Date(Number(msgParts[3]))
+              totalsegments = (fileSize % (buffersize - 6)) !== 0 ? parseInt(fileSize / (buffersize - 6)) + 1 : parseInt(fileSize / (buffersize - 6))
+              filebuffers = new Array(totalsegments)
+              timer = setTimeout(() => {
+                console.log('client retry getting lost segments get | in the FIFO ' + FIFO.length)
+              }, timeOut)
+              console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + fileSize + 'B segments ' + totalsegments + 'begin time transmition ' + beginTime)
             }
           } else {
-            filebuffers.push(msg)
-            console.log('Number of fragments recieved ' + filebuffers.length + ' of ' + totalFragments)
-            if (filebuffers.length === totalFragments) {
-              let wStream = fs.createWriteStream('./files/' + filename)
-              var buffersTotal = Buffer.concat(filebuffers, filesize)
-              wStream.write(buffersTotal)
-              wStream.end()
-              console.log('Transfer complete file saved')
-              client.close()
-              resolve()
-            }
+            FIFO.push(msg)
+            clearTimeout(timer)
+            timer = setTimeout(() => {
+              process(resolve, FIFO, filebuffers, filename, fileSize, reject)
+            }, timeOut)
+            segmentsReceive++
+          //  console.log('Number of segments recieved ' + segmentsReceive + ' of ' + totalsegments)
           }
         })
       }
     })
+  })
+}
+function process (resolve, FIFO, filebuffers, filename, fileSize, reject) {
+  // reciving segments re start timeout
+  // putting segments in their position msg.slice(0, 1) has the position
+  let segmentsReceive = 0
+  console.log('processing segments received ...')
+  doWhilst((cb) => {
+    var msg = FIFO.pop()
+    let index = Number(msg.slice(0, 6)) - 100001
+    if (filebuffers[index] === undefined) {
+      filebuffers[index] = (msg.slice(6, msg.length))
+      segmentsReceive++
+    } else {
+      console.log('repetido')
+    }
+    cb()
+  },
+  () => {
+    return FIFO.length > 0
+  },
+  (err) => {
+    if (err) throw err
+
+    if (filebuffers.length === segmentsReceive) {
+      let wStream = fs.createWriteStream('./files/' + filename)
+      var buffersTotal = Buffer.concat(filebuffers, fileSize)
+      wStream.write(buffersTotal)
+      wStream.end()
+      console.log('Transfer complete file saved')
+      client.close()
+      resolve()
+    } else {
+      console.log('There are missing segments' + segmentsReceive)
+      console.log('Asking for segments' + filebuffers.length)
+      //  console.log('Asking for segments' + filebuffers[1560])
+      let i = 0
+      let missing = []
+      doWhilst((cb) => {
+        if (filebuffers[i] === undefined) {
+          missing.push(i)
+        }
+        i++
+        cb()
+      },
+      () => {
+        return i !== filebuffers.length
+      },
+      (err) => {
+        if (err) throw err
+        console.log('para pedir ' + missing.length)
+        let message = Buffer.from('gi ' + missing.toString())
+        console.log('tam mensaje ' + message.length)
+        client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
+          if (err) reject(err)
+          console.log('envio pedido de ' + missing.length)
+        })
+      })
+    }
   })
 }
 
@@ -82,17 +149,17 @@ exports.sendFile = (filename) => {
     fs.readFile('./files/' + filename, (err, file) => {
       if (err) throw err
 
-      // FRAGMENTATION
+      // segmentATION
       let dataTransfered = 0
       let dataSize = file.length
-      let fragments = []
+      let segments = []
 
       while (dataTransfered !== dataSize) {
         let max = (dataTransfered + maxBufferSize) < dataSize ? dataTransfered + maxBufferSize : dataSize
-        fragments.push(file.slice(dataTransfered, max))
+        segments.push(file.slice(dataTransfered, max))
         dataTransfered = max
       }
-      let init = Buffer.from('f ' + filename + ' ' + file.length + ' ' + fragments.length)
+      let init = Buffer.from('f ' + filename + ' ' + file.length + ' ' + segments.length)
 
       client.send(init, 0, init.length, config.server.port, config.server.host, (err, bytes) => {
         if (err) throw err
@@ -104,9 +171,9 @@ exports.sendFile = (filename) => {
               n: i,
               // TimeStamp
               ts: new Date(),
-              // File Fragment
-              ff: fragments[i]
-              // MAYBE FILE FRAGMENT SIZE ??
+              // File segment
+              ff: segments[i]
+              // MAYBE FILE segment SIZE ??
             }
             let toSendS = JSON.stringify(toSend)
             client.send(toSendS, 0, toSendS.length, config.server.port, config.server.host, (err, bytes) => {
@@ -116,7 +183,7 @@ exports.sendFile = (filename) => {
             })
           },
           () => {
-            return i !== fragments.length
+            return i !== segments.length
           },
           (err) => {
             if (err) throw err
@@ -146,6 +213,7 @@ exports.sendObjects = (number) => {
         // Object Iteration
         let toSendS = 'oi ' + JSON.stringify(toSendO)
         let toSendB = Buffer.from(toSendS)
+        console.log(' tmanio ' + toSendB.length)
         client.send(toSendB, 0, toSendB.length, config.server.port, config.server.host, (err, bytes) => {
           if (err) throw err
           i++
