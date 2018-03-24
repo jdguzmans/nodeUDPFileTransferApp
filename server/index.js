@@ -4,6 +4,8 @@ const dgram = require('dgram')
 const server = dgram.createSocket('udp4')
 const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
+const objectDelay = config.objectDelay
+let states = []
 
 server.on('listening', () => {
   server.setSendBufferSize(maxBufferSize)
@@ -25,6 +27,8 @@ server.on('message', (msg, rinfo) => {
   let command = msgParts[0]
 
   if (command === 'l') {
+    // LIST FILES
+    // ESTA SE PUEDE DEJAR COMO ESTSA PORQUE NO ES NECESARIO MANEJAR ESTADP
     fs.readdir('./files', (err, files) => {
       if (err) throw err
       let ansString = ''
@@ -38,10 +42,10 @@ server.on('message', (msg, rinfo) => {
       let ans = Buffer.from(ansString)
       server.send(ans, 0, ans.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
-        // else server.close()
       })
     })
   } else if (command === 'g') {
+    // GET A FILE ---- NOT DONE YET
     let filename = msgParts[1]
     fs.readFile('./files/' + filename, (err, file) => {
       if (err) throw err
@@ -85,52 +89,78 @@ server.on('message', (msg, rinfo) => {
         }
       })
     })
-  } else if (command === 'f') {
-    let filename = msgParts[1]
-    let filesize = msgParts[2]
-    let fragments = msgParts[3]
-
-    let received = 0
-
-    let filebuffers = new Array(fragments)
-
-    server.on('message', (msg, rinfo) => {
-      let obj = JSON.parse(msg.toString())
-
-      let number = obj.n
-      let timeStamp = obj.ts
-      let fragment = Buffer.from(obj.ff.data)
-
-      filebuffers.push(fragment)
-      received++
-
-      if (received === (fragments - 1)) {
-        let wStream = fs.createWriteStream('./files/' + filename)
-        let buffersTotal = Buffer.concat(filebuffers, filesize)
-        wStream.write(buffersTotal)
-        wStream.end()
-        console.log('done')
-      }
-    })
   } else if (command === 'o') {
+    // OBJECT START
     let number = msgParts[1]
-    let i = 0
+
     let filename = rinfo.address.replace('.', '_') + '_' + rinfo.port
     let wStream = fs.createWriteStream('./results/' + filename)
-    server.on('message', (msg, rinfo) => {
-      let obj = JSON.parse(msg.toString())
-      wStream.write(obj.n + ' ' + (new Date().getTime() - obj.ts) + ' ms\n')
-      let ack = {
-        n: obj.n
+
+    states.push({
+      type: 'o',
+      host: rinfo.address,
+      port: rinfo.port,
+      filename: filename,
+      wStream: wStream,
+      received: 0,
+      delaySum: 0
+    })
+
+    setTimeout(() => {
+      let stateIndex = getStateIndex('o', rinfo.port, rinfo.address)
+      let state = states[stateIndex]
+
+      state.wStream.write('\naverage delay ' + state.delaySum / state.received + 'ms\n')
+      state.wStream.write('lost ' + (number - state.received) + ' datagrams')
+      state.wStream.end()
+
+      let ans = {
+        averageDelay: state.delaySum / state.received,
+        lost: (number - state.received)
       }
-      let ackS = JSON.stringify(ack)
-      server.send(ackS, 0, ackS.length, rinfo.port, rinfo.address, (err, bytes) => {
+
+      deleteStateByIndex(stateIndex)
+
+      // REPLY
+      let ansS = 'oa ' + JSON.stringify(ans)
+      let ansB = Buffer.from(ansS)
+
+      server.send(ansB, 0, ansB.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
       })
-      i++
-      if (i === number) {
-        wStream.end()
-      }
-    })
+    }, number * objectDelay)
+  } else if (command === 'oi') {
+    // OBJECT ITERATION
+    let state = states[getStateIndex('o', rinfo.port, rinfo.address)]
+    let wStream = state.wStream
+
+    let objS = msgParts[1].toString()
+    let obj = JSON.parse(objS)
+    let delay = (new Date().getTime() - obj.ts)
+    wStream.write(obj.n + ' ' + delay + ' ms\n')
+
+    state.received ++
+    state.delaySum += delay
+    saveState(state)
   }
 })
+
+function getStateIndex (type, port, host) {
+  let ans = 0
+  states.forEach((state, i) => {
+    if (state.type === type && state.port === port && state.host === host) ans = i
+  })
+  return ans
+}
+
+function saveState (toSave) {
+  states.forEach((state, i) => {
+    if (state.type === toSave.type && state.port === toSave.port && state.host === toSave.host) {
+      states[i] = toSave
+    }
+  })
+}
+
+function deleteStateByIndex (index) {
+  states.splice(index, 1)
+}

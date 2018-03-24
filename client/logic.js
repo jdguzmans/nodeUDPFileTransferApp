@@ -3,7 +3,18 @@ const fs = require('fs')
 const dgram = require('dgram')
 const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
+const objectDelay = config.objectDelay
 let client = null
+
+exports.listLocalFiles = () => {
+  return new Promise((resolve, reject) => {
+    fs.readdir('./files', (err, files) => {
+      if (err) reject(err)
+      resolve(files)
+    })
+  })
+}
+
 exports.listRemoteFiles = () => {
   client = dgram.createSocket('udp4')
   return new Promise((resolve, reject) => {
@@ -119,27 +130,26 @@ exports.sendFile = (filename) => {
 }
 
 exports.sendObjects = (number) => {
+  client = dgram.createSocket('udp4')
   return new Promise((resolve, reject) => {
+    // Object
     let init = Buffer.from('o ' + number)
 
     client.send(init, 0, init.length, config.server.port, config.server.host, (err, bytes) => {
       if (err) throw err
       let i = 0
       doWhilst((cb) => {
-        let toSend = {
+        let toSendO = {
           n: i,
           ts: new Date().getTime()
         }
-        let toSendS = Buffer.from(JSON.stringify(toSend))
-        client.send(toSendS, 0, toSendS.length, config.server.port, config.server.host, (err, bytes) => {
+        // Object Iteration
+        let toSendS = 'oi ' + JSON.stringify(toSendO)
+        let toSendB = Buffer.from(toSendS)
+        client.send(toSendB, 0, toSendB.length, config.server.port, config.server.host, (err, bytes) => {
           if (err) throw err
-          client.on('message', (msg, rinfo) => {
-            let ack = JSON.parse(msg.toString())
-            if (ack.n === i) {
-              i++
-              cb()
-            }
-          })
+          i++
+          cb()
         })
       },
       () => {
@@ -147,8 +157,30 @@ exports.sendObjects = (number) => {
       },
       (err) => {
         if (err) throw err
-        console.log('objects sent')
-        resolve()
+        console.log('Objects sent')
+        let ans = false
+        client.on('message', (msg, rinfo) => {
+          let msgString = msg.toString()
+          let msgParts = msgString.split(' ')
+          let command = msgParts[0]
+
+          // Object answer
+          if (command === 'oa') {
+            ans = true
+            let msgO = JSON.parse(msgParts[1])
+
+            console.log('Average delay: ' + msgO.averageDelay + 'ms')
+            console.log('Datagrams lost: ' + msgO.lost)
+          }
+          client.close()
+          resolve()
+        })
+
+        setTimeout(() => {
+          if (!ans) {
+            console.log('Server reply lost')
+          }
+        }, objectDelay * number)
       })
     })
   })

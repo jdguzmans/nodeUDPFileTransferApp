@@ -1,5 +1,5 @@
-const fs = require('fs')
-const communication = require('./communication')
+
+const logic = require('./logic')
 const inquirer = require('inquirer')
 
 function home () {
@@ -13,7 +13,7 @@ function home () {
   inquirer.prompt(question)
     .then(answer => {
       if (answer.option === 'List remote files') {
-        communication.listRemoteFiles()
+        logic.listRemoteFiles()
           .then(files => {
             files.forEach(file => {
               console.log('- ' + file)
@@ -24,16 +24,29 @@ function home () {
             console.log(e)
           })
       } else if (answer.option === 'List local files') {
-        fs.readdir('./files', (err, files) => {
-          if (err) throw err
-          files.forEach((file, i) => {
+        logic.listLocalFiles()
+        .then(files => {
+          files.forEach(file => {
             console.log('- ' + file)
           })
+          home()
         })
       } else if (answer.option === 'Get a file') {
-        getAFile()
+        let qs = [{
+          type: 'Input',
+          name: 'filename',
+          message: 'Type the filename in the remote directory'
+        }]
+      
+        inquirer.prompt(qs)
+          .then(answer => {
+            logic.getFile(answer.filename)
+              .then(() => {
+                home()
+              })
+          })
       } else if (answer.option === 'Send a file') {
-        communication.sendFile('dummy.pdf')
+        logic.sendFile('dummy.pdf')
           .then(() => {
             home()
           })
@@ -50,28 +63,12 @@ function home () {
         }]
         inquirer.prompt(qs).then(ans => {
           let number = ans.number
-          communication.sendObjects(number)
+          logic.sendObjects(number)
             .then(() => {
               home()
             })
         })
       }
-    })
-}
-
-function getAFile () {
-  let question = [{
-    type: 'Input',
-    name: 'filename',
-    message: 'Type the filename in the remote directory'
-  }]
-
-  inquirer.prompt(question)
-    .then(answer => {
-      communication.getFile(answer.filename)
-        .then(() => {
-          home()
-        })
     })
 }
 

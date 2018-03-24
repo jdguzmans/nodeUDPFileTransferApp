@@ -4,3 +4,4 @@ exports.server = {
 }
 
 exports.maxBufferSize = 60000
+exports.objectDelay = 10
