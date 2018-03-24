@@ -6,6 +6,8 @@ const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
 const timeOut = config.timeOutToWaitForServer
 var Dequeue = require('dequeue')
+const crypto = require('crypto')
+let hash = null
 let client = null
 
 exports.listLocalFiles = () => {
@@ -51,7 +53,7 @@ exports.getFile = (filename) => {
         let filebuffers = null
         let totalsegments = null
         let beginTime = null
-        let segmentsReceive = 0
+        let fileHash = null
         let timer = null
         let FIFO = new Dequeue()
         // msg with initial info
@@ -59,35 +61,35 @@ exports.getFile = (filename) => {
           if (buffersize === null) {
             let msgString = msg.toString()
             let msgParts = msgString.split(' ')
-            if (msgParts.length === 4 && msgParts[0] === 'f') {
+            if (msgParts.length === 5 && msgParts[0] === 'f') {
               buffersize = Number(msgParts[2])
               fileSize = Number(msgParts[1])
-              beginTime = new Date(Number(msgParts[3]))
+              beginTime = Number(msgParts[3])
+              fileHash = msgParts[4]
               totalsegments = (fileSize % (buffersize - 6)) !== 0 ? parseInt(fileSize / (buffersize - 6)) + 1 : parseInt(fileSize / (buffersize - 6))
               filebuffers = new Array(totalsegments)
               timer = setTimeout(() => {
                 console.log('client retry getting lost segments get | in the FIFO ' + FIFO.length)
               }, timeOut)
-              console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + fileSize + 'B segments ' + totalsegments + 'begin time transmition ' + beginTime)
+              console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + fileSize + 'B segments ' + totalsegments + ' begin time transmition ' + new Date(beginTime))
             }
           } else {
             FIFO.push(msg)
             clearTimeout(timer)
             timer = setTimeout(() => {
-              process(resolve, FIFO, filebuffers, filename, fileSize, reject)
+              process(resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime)
             }, timeOut)
-            segmentsReceive++
-          //  console.log('Number of segments recieved ' + segmentsReceive + ' of ' + totalsegments)
+            console.log('Receiving data ...')
           }
         })
       }
     })
   })
 }
-function process (resolve, FIFO, filebuffers, filename, fileSize, reject) {
+
+function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime) {
   // reciving segments re start timeout
   // putting segments in their position msg.slice(0, 1) has the position
-  console.log('processing segments received ...')
   while (FIFO.length > 0) {
     var msg = FIFO.shift()
     let index = Number(msg.slice(0, 6)) - 100001
@@ -97,34 +99,86 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject) {
   }
   if (FIFO.length === 0) {
     console.log(' 2 processing segments received ...')
-    let i = 0
+    let total = 0
     let missing = []
     doWhilst((cb) => {
-      if (filebuffers[i] === undefined) {
-        missing.push(i)
-      }
-      console.log(' 3 ' + filebuffers.length - i)
-      i++
+      let i = total
+      let max = (filebuffers.length - i > 1000) ? i + 1000 : filebuffers.length
+      doWhilst((b) => {
+        if (filebuffers[i] === undefined) {
+          missing.push(i)
+        }
+        i++
+        total++
+        b()
+      },
+      () => {
+        return i !== max
+      },
+      (err) => {
+        if (err) throw err
+      })
       cb()
     },
     () => {
-      return i !== filebuffers.length
+      return total !== filebuffers.length
     },
     (err) => {
       if (err) throw err
-      if (missing.lenght !== 0) {
-        console.log('Asking for ' + missing.lenght + '  lost segments')
-        let message = Buffer.from('gi ' + missing.toString())
-        client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
-          if (err) reject(err)
-          console.log('envio pedido de ' + missing.length)
+      if (missing.length !== 0) {
+        let buf1 = Buffer.from('gi ')
+        let elemts = 1
+        let encontro = false
+        while (!encontro) {
+          if (5 + (elemts) * 6 > buffersize - 3) {
+            encontro = true
+            elemts--
+          }
+          elemts++
+        }
+
+        let elemtTransfered = 0
+        let msgSegments = []
+        while (elemtTransfered !== missing.length) {
+          let max = ((elemtTransfered + elemts) < missing.length) ? elemtTransfered + elemts : missing.length
+          let buf3 = Buffer.from(missing.slice(elemtTransfered, max).toString())
+          let bufA = Buffer.concat([buf1, buf3], buf1.length + buf3.length)
+          elemtTransfered = max
+          msgSegments.push(bufA)
+        }
+        let i = 0
+        // let max = (filebuffers.length - i > 1000) ? i + 1000 : filebuffers.length
+        doWhilst((b) => {
+          client.send(msgSegments[i], 0, msgSegments[i].length, config.server.port, config.server.host, (err, bytes) => {
+            if (err) throw err
+            console.log('asking for lost segments ..')
+            i++
+            b()
+          })
+        },
+        () => {
+          return i !== msgSegments.length
+        },
+        (err) => {
+          if (err) throw err
         })
       } else {
+        console.log('Transfer ended')
+        let totalTime = new Date((new Date().getTime() - beginTime))
+        let seconds = totalTime.getSeconds()
+        let minutes = totalTime.getMinutes()
+        hash = crypto.createHash('sha256')
         let wStream = fs.createWriteStream('./files/' + filename)
         var buffersTotal = Buffer.concat(filebuffers, fileSize)
+        hash.update(buffersTotal)
+        let hashFileR = hash.digest('hex')
+        console.log('calculating hash ...')
+        hash = null
         wStream.write(buffersTotal)
         wStream.end()
-        console.log('Transfer complete file saved')
+        console.log('File saved')
+        console.log('Total transfer time ' + minutes + ':' + seconds)
+        console.log((hashFileR === fileHash) ? 'Hash file correct :)' : 'Hash file incorrect  :/')
         client.close()
         resolve()
       }

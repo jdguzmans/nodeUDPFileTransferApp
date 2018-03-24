@@ -6,6 +6,8 @@ const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
 const fileDelay = config.fileDelay
+const crypto = require('crypto')
+let hash = null
 let states = []
 
 server.on('listening', () => {
@@ -55,8 +57,14 @@ server.on('message', (msg, rinfo) => {
     fs.readFile('./files/' + filename, (err, file) => {
       if (err) throw err
       // msg file size buffer size and begin time
+      hash = crypto.createHash('sha256')
+      hash.update(file)
+      let hashFile = hash.digest('hex')
+      console.log('creating hash ... ' + hashFile)
+      hash = null
       let beginTime = new Date().getTime()
-      let ans = Buffer.from('f ' + file.length + ' ' + maxBufferSize + ' ' + beginTime.toString())
+      let ans = Buffer.from('f ' + file.length + ' ' + maxBufferSize + ' ' + beginTime.toString() + ' ' + hashFile)
+      console.log('size message ' + ans.length)
       server.send(ans, 0, ans.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
         let dataTransfered = 0
@@ -92,7 +100,7 @@ server.on('message', (msg, rinfo) => {
         })
         let i = 0
         doWhilst((cb) => {
-          console.log('size !! ' + segments[i].length)
+          // console.log('size !! ' + segments[i].length)
           server.send(segments[i], 0, segments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
             if (err) throw err
             console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
@@ -112,7 +120,9 @@ server.on('message', (msg, rinfo) => {
   } else if (command === 'gi') {
     // client asking for lost segments
     let segmentsIndex = msgParts[1]
+    console.log('enter gi ' + segmentsIndex)
     let nSegments = JSON.parse('[' + segmentsIndex + ']')
+    console.log('enter gi ' + nSegments)
     let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
     clearTimeout(state.timeout)
     // Setting TimeOut to eventualy remove the client
