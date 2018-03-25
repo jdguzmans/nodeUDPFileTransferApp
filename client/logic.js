@@ -3,7 +3,10 @@ const fs = require('fs')
 const dgram = require('dgram')
 const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
+
 const objectDelay = config.objectDelay
+const objectConstantDelay = config.objectConstantDelay
+
 const timeOut = config.timeOutToWaitForServer
 var Dequeue = require('dequeue')
 const crypto = require('crypto')
@@ -288,38 +291,34 @@ exports.sendObjects = (number) => {
         if (err) throw err
         console.log('Objects sent')
         let ans = false
-        client.on('message', (msg, rinfo) => {
-          let msgString = msg.toString()
-          let msgParts = msgString.split(' ')
-          let command = msgParts[0]
-
-          // Object answer
-          if (command === 'oa') {
-            ans = true
-            let msgO = JSON.parse(msgParts[1])
-
-            console.log('Average delay: ' + msgO.averageDelay + 'ms')
-            console.log('Datagrams lost: ' + msgO.lost)
-          }
-          client.close()
-          resolve()
-        })
+        let alive = true
 
         setTimeout(() => {
           if (!ans) {
             console.log('Server reply lost')
           }
-        }, objectDelay * number)
+          alive = false
+          resolve()
+        }, objectDelay * number + objectConstantDelay)
+
+        client.on('message', (msg, rinfo) => {
+          if (alive) {
+            let msgString = msg.toString()
+            let msgParts = msgString.split(' ')
+            let command = msgParts[0]
+
+          // Object answer
+            if (command === 'oa') {
+              ans = true
+              let msgO = JSON.parse(msgParts[1])
+
+              console.log('Average delay: ' + msgO.averageDelay + 'ms')
+              console.log('Datagrams lost: ' + msgO.lost)
+            }
+          }
+          client.close()
+        })
       })
     })
   })
 }
-
-// sendObject = function (i, n, cb) {
-// }
-
-// client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
-//   if (err) throw err
-//   console.log('UDP message sent to ' + config.server.host + ':' + config.server.port)
-//   client.close()
-// })
