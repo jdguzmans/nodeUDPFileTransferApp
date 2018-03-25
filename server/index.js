@@ -111,7 +111,7 @@ server.on('message', (msg, rinfo) => {
                 console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
               }
             }, dataSize * fileDelay + fileConstantDelay)
-            // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
+            console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (dataSize * fileDelay + fileConstantDelay) / 1000 + ' seconds')
             // seve the state of the client
             states.push({
               type: 'g',
@@ -158,12 +158,12 @@ server.on('message', (msg, rinfo) => {
       // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
       let timr = setTimeout(() => {
         let stateIndex = getStateIndex('g', rinfo.port, rinfo.address)
-        console.log('client ' + rinfo.address + ':' + rinfo.port + ' for remove')
         if (stateIndex !== -1) {
           deleteStateByIndex(stateIndex)
           console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
         }
       }, fileConstantDelay + state.fileSize * fileDelay)
+      console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (fileConstantDelay + state.fileSize * fileDelay) / 1000 + ' seconds')
       let s = state.timeout
       clearTimeout(s)
       state.timeout = timr
