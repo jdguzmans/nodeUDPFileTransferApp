@@ -1,6 +1,6 @@
 exports.server = {
   port: 64556,
-  host: 'localhost'
+  host: '208.167.255.22'
 }
 // minBufferSize = 90
 // maxBufferSize = 65000
