@@ -299,7 +299,7 @@ exports.sendObjects = (number) => {
           }
           alive = false
           resolve()
-        }, objectDelay * number + objectConstantDelay)
+        }, (objectDelay * number + objectConstantDelay) * 2)
 
         client.on('message', (msg, rinfo) => {
           if (alive) {
