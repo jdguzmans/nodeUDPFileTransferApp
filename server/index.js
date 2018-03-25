@@ -178,7 +178,7 @@ server.on('message', (msg, rinfo) => {
     })
 
     setTimeout(() => {
-      let stateIndex = getStateIndex('o', rinfo.address, rinfo.port)
+      let stateIndex = getStateIndex('o', rinfo.port, rinfo.address)
       let state = states[stateIndex]
 
       state.wStream.write('\naverage delay ' + state.delaySum / state.received + 'ms\n')
@@ -204,7 +204,6 @@ server.on('message', (msg, rinfo) => {
   } else if (command === 'oi') {
     // OBJECT ITERATION
     let stateIndex = getStateIndex('o', rinfo.port, rinfo.address)
-    console.log(stateIndex)
     let state = states[stateIndex]
     let wStream = state.wStream
 
