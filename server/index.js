@@ -30,7 +30,7 @@ server.on('message', (msg, rinfo) => {
   let msgString = msg.toString()
   let msgParts = msgString.split(' ')
   let command = msgParts[0]
-  console.log('server got: ' + msgString + ' from ' + rinfo.address + ':' + rinfo.port)
+  console.log('server got: ' + command + ' from ' + rinfo.address + ':' + rinfo.port)
 
   if (command === 'l') {
     // LIST FILES
@@ -57,7 +57,7 @@ server.on('message', (msg, rinfo) => {
     fs.readFile('./files/' + filename, (err, file) => {
       if (err) console.log(err)
       else {
-              // msg file size buffer size and begin time
+        // msg file size buffer size and begin time
         hash = crypto.createHash('sha256')
         hash.update(file)
         let hashFile = hash.digest('hex')
@@ -102,7 +102,7 @@ server.on('message', (msg, rinfo) => {
               deleteStateByIndex(stateIndex)
               console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
             }
-          // Setting TimeOut to eventualy remove the client
+            // Setting TimeOut to eventualy remove the client
             let timer = setTimeout(() => {
               let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
               console.log('timer se ejecuto con state ' + stateIndex)
@@ -111,8 +111,8 @@ server.on('message', (msg, rinfo) => {
                 console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
               }
             }, dataSize * fileDelay + fileConstantDelay)
-          // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
-          // seve the state of the client
+            // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
+            // seve the state of the client
             states.push({
               type: 'g',
               host: rinfo.address,
@@ -154,15 +154,17 @@ server.on('message', (msg, rinfo) => {
     (err) => {
       if (err) throw err
       // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
-      let timer = setTimeout(() => {
-        let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-        console.log('entro a timer de re envio !!! con index ' + stateIndex)
+      let timr = setTimeout(() => {
+        let stateIndex = getStateIndex('g', rinfo.port, rinfo.address)
+        console.log('Entro a gi numero de usuarios en states  re envio' + states.length)
+        console.log('Entro a timer de re envio !!! con index ' + stateIndex)
+        console.log('client ' + rinfo.address + ':' + rinfo.port + ' for remove')
         if (stateIndex !== -1) {
           deleteStateByIndex(stateIndex)
           console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
         }
       }, fileConstantDelay + state.fileSize * fileDelay)
-      state.timeout = timer
+      state.timeout = timr
       saveState(state)
     })
   } else if (command === 'o') {
