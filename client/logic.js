@@ -311,7 +311,7 @@ exports.sendObjects = (number) => {
             let msgParts = msgString.split(' ')
             let command = msgParts[0]
 
-          // Object answer
+            // Object answer
             if (command === 'oa') {
               ans = true
               let msgO = JSON.parse(msgParts[1])

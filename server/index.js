@@ -133,42 +133,45 @@ server.on('message', (msg, rinfo) => {
     let nSegments = JSON.parse('[' + segmentsIndex + ']')
     // console.log('enter gi ' + nSegments)
     console.log('Entro a gi numero de usuarios en states ' + states.length)
-    let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
-    // console.log('jbkjb ' + state.toString())
-    let time = state.timeout
-    clearTimeout(time)
-    saveState(state)
-    // Setting TimeOut to eventualy remove the client
-    let file = state.segments
-    let i = 0
-    console.log('file resent segments ' + nSegments.length)
-    doWhilst((cb) => {
-      server.send(file[nSegments[i]], 0, file[nSegments[i]].length, rinfo.port, rinfo.address, (err, bytes) => {
-        if (err) throw err
-        //  console.log('file segments resent ' + nSegments[i])
-        i++
-        cb()
-      })
-    },
-    () => {
-      return i !== nSegments.length
-    },
-    (err) => {
-      if (err) throw err
-      // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
-      let timr = setTimeout(() => {
-        let stateIndex = getStateIndex('g', rinfo.port, rinfo.address)
-        if (stateIndex !== -1) {
-          deleteStateByIndex(stateIndex)
-          console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
-        }
-      }, fileConstantDelay + state.fileSize * fileDelay)
-      console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (fileConstantDelay + state.fileSize * fileDelay) / 1000 + ' seconds')
-      let s = state.timeout
-      clearTimeout(s)
-      state.timeout = timr
+    let index = getStateIndex('g', rinfo.port, rinfo.address)
+    if (index !== -1) {
+      let state = states[index]
+      // console.log('jbkjb ' + state.toString())
+      let time = state.timeout
+      clearTimeout(time)
       saveState(state)
-    })
+      // Setting TimeOut to eventualy remove the client
+      let file = state.segments
+      let i = 0
+      console.log('file resent segments ' + nSegments.length)
+      doWhilst((cb) => {
+        server.send(file[nSegments[i]], 0, file[nSegments[i]].length, rinfo.port, rinfo.address, (err, bytes) => {
+          if (err) throw err
+          //  console.log('file segments resent ' + nSegments[i])
+          i++
+          cb()
+        })
+      },
+      () => {
+        return i !== nSegments.length
+      },
+      (err) => {
+        if (err) throw err
+        // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
+        let timr = setTimeout(() => {
+          let stateIndex = getStateIndex('g', rinfo.port, rinfo.address)
+          if (stateIndex !== -1) {
+            deleteStateByIndex(stateIndex)
+            console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
+          }
+        }, fileConstantDelay + state.fileSize * fileDelay)
+        console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (fileConstantDelay + state.fileSize * fileDelay) / 1000 + ' seconds')
+        let s = state.timeout
+        clearTimeout(s)
+        state.timeout = timr
+        saveState(state)
+      })
+    }
   } else if (command === 'o') {
     // OBJECT START
     let number = msgParts[1]
