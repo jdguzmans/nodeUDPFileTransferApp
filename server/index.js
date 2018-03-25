@@ -203,7 +203,9 @@ server.on('message', (msg, rinfo) => {
     }, objectConstantDelay + number * objectDelay)
   } else if (command === 'oi') {
     // OBJECT ITERATION
-    let state = states[getStateIndex('o', rinfo.port, rinfo.address)]
+    let stateIndex = getStateIndex('o', rinfo.port, rinfo.address)
+    console.log(stateIndex)
+    let state = states[stateIndex]
     let wStream = state.wStream
 
     let objS = msgParts[1].toString()
