@@ -135,8 +135,8 @@ server.on('message', (msg, rinfo) => {
     console.log('Entro a gi numero de usuarios en states ' + states.length)
     let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
     // console.log('jbkjb ' + state.toString())
-    clearTimeout(state.timeout)
-    state.timeout = null
+    let time = state.timeout
+    clearTimeout(time)
     saveState(state)
     // Setting TimeOut to eventualy remove the client
     let file = state.segments
@@ -164,6 +164,8 @@ server.on('message', (msg, rinfo) => {
           console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
         }
       }, fileConstantDelay + state.fileSize * fileDelay)
+      let s = state.timeout
+      clearTimeout(s)
       state.timeout = timr
       saveState(state)
     })
