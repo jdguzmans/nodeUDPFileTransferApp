@@ -9,3 +9,4 @@ exports.objectDelay = 50
 exports.fileDelay = 0.5
 // miliseconds
 exports.timeOutToWaitForServer = 5000
+exports.objectConstantDelay = 5000

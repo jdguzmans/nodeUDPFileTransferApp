@@ -6,6 +6,7 @@ const server = dgram.createSocket('udp4')
 const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
 // const fileDelay = config.fileDelay
+const objectConstantDelay = config.objectConstantDelay
 const crypto = require('crypto')
 let hash = null
 let states = []
@@ -198,7 +199,7 @@ server.on('message', (msg, rinfo) => {
       server.send(ansB, 0, ansB.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
       })
-    }, number * objectDelay)
+    }, objectConstantDelay + number * objectDelay)
   } else if (command === 'oi') {
     // OBJECT ITERATION
     let state = states[getStateIndex('o', rinfo.port, rinfo.address)]
