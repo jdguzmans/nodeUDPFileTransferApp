@@ -104,7 +104,7 @@ server.on('message', (msg, rinfo) => {
             }
             // Setting TimeOut to eventualy remove the client
             let timer = setTimeout(() => {
-              let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
+              let stateIndex = getStateIndex('g', rinfo.port, rinfo.address)
               console.log('timer se ejecuto con state ' + stateIndex)
               if (stateIndex !== -1) {
                 deleteStateByIndex(stateIndex)
