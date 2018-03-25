@@ -228,7 +228,6 @@ function saveState (toSave) {
   states.forEach((state, i) => {
     if (state.type === toSave.type && state.port === toSave.port && state.host === toSave.host) {
       states[i] = toSave
-      console.log('savef ' + i)
     }
   })
 }
