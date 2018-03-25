@@ -132,12 +132,14 @@ server.on('message', (msg, rinfo) => {
     // console.log('enter gi ' + segmentsIndex)
     let nSegments = JSON.parse('[' + segmentsIndex + ']')
     // console.log('enter gi ' + nSegments)
+    console.log('Entro a gi numero de usuarios en states ' + states.length)
     let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
-    console.log('jbkjb ' + state.toString())
+    // console.log('jbkjb ' + state.toString())
     clearTimeout(state.timeout)
     // Setting TimeOut to eventualy remove the client
     let file = state.segments
     let i = 0
+    console.log('file resent segments ' + nSegments.length)
     doWhilst((cb) => {
       server.send(file[nSegments[i]], 0, file[nSegments[i]].length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
