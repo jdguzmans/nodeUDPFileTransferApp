@@ -6,6 +6,6 @@ exports.server = {
 // maxBufferSize = 65000
 exports.maxBufferSize = 65500
 exports.objectDelay = 50
-exports.fileDelay = 0.5
+exports.fileDelay = 1 / 100000
 // miliseconds
-exports.timeOutToWaitForServer = 5000
+exports.timeOutToWaitForServer = 100000

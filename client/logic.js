@@ -5,6 +5,7 @@ const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
 const timeOut = config.timeOutToWaitForServer
+const fileDelay = config.fileDelay
 var Dequeue = require('dequeue')
 const crypto = require('crypto')
 let hash = null
@@ -55,12 +56,13 @@ exports.getFile = (filename, sizeMessage) => {
         let totalsegments = null
         let beginTime = null
         let fileHash = null
+        let got = 0
         timery = setTimeout(() => {
           console.log('Time out server did not answer')
           console.log('Plase re-try')
           client.close()
           resolve()
-        }, timeOut)
+        }, timeOut * 3)
         let timer2 = null
         let FIFO = new Dequeue()
         // msg with initial info
@@ -79,9 +81,9 @@ exports.getFile = (filename, sizeMessage) => {
               timery = setTimeout(() => {
                 console.log('Wating for jjj server time out')
                 console.log('Plase re-try')
-                client.close()
-                resolve()
-              }, timeOut)
+                //  client.close()
+                // resolve()
+              }, 600000 + fileDelay * fileSize)
               console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + fileSize + 'B segments ' + totalsegments + ' begin time transmition ' + new Date(beginTime))
             }
           } else {
@@ -89,10 +91,11 @@ exports.getFile = (filename, sizeMessage) => {
             clearTimeout(timery)
             if (timer2 !== null) clearTimeout(timer2)
             timer2 = setTimeout(() => {
-              console.log('Reasfasdfljba ...')
+              console.log('Procesing ...')
               process(resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime)
-            }, timeOut / 5)
-            console.log('Receiving data ...')
+            }, (buffersize < 3000) ? buffersize + 6000 : 60000)
+            got++
+            console.log('Receiving data ...' + got)
           }
         })
       }
@@ -179,14 +182,14 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
             console.log('Plase re-try')
             client.close()
             resolve()
-          }, timeOut * 2)
+          }, (buffersize < 3000) ? buffersize + 6000 : 17000)
         })
       } else {
         clearTimeout(timery)
         console.log('Transfer ended')
         let totalTime = new Date((new Date().getTime() - beginTime))
-        let seconds = totalTime.getSeconds()
-        let minutes = totalTime.getMinutes()
+        let seconds = totalTime.getTime() / 1000
+        let minutes = seconds / 60
         hash = crypto.createHash('sha256')
         let wStream = fs.createWriteStream('./files/' + filename)
         var buffersTotal = Buffer.concat(filebuffers, fileSize)
@@ -197,7 +200,8 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
         wStream.write(buffersTotal)
         wStream.end()
         console.log('File saved')
-        console.log('Total transfer time ' + minutes + ':' + seconds)
+        console.log('Total transfer time ' + seconds + ' seconds')
+        console.log('Total transfer time ' + minutes + ' minutes')
         console.log((hashFileR === fileHash) ? 'Hash file correct :)' : 'Hash file incorrect  :/')
         client.close()
         resolve()
