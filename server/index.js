@@ -50,10 +50,6 @@ server.on('message', (msg, rinfo) => {
   } else if (command === 'g') {
     let filename = msgParts[1]
     // if the client has ot
-    let stateIndex = getStateIndex('o', rinfo.address, rinfo.port)
-    if (stateIndex !== 0) {
-      deleteStateByIndex(stateIndex)
-    }
     fs.readFile('./files/' + filename, (err, file) => {
       if (err) throw err
       // msg file size buffer size and begin time
@@ -96,14 +92,20 @@ server.on('message', (msg, rinfo) => {
         },
         (err) => {
           if (err) throw err
+          let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
+          if (stateIndex !== 0) {
+            deleteStateByIndex(stateIndex)
+            console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
+          }
           // Setting TimeOut to eventualy remove the client
           let timer = setTimeout(() => {
+            console.log('clientdfdf ' + rinfo.address + ':' + rinfo.port + ' removed')
             let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
             if (stateIndex !== 0) {
               deleteStateByIndex(stateIndex)
               console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
             }
-          }, 15000)
+          }, 5000)
           // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
           // seve the state of the client
           states.push({
@@ -124,6 +126,7 @@ server.on('message', (msg, rinfo) => {
     let nSegments = JSON.parse('[' + segmentsIndex + ']')
     // console.log('enter gi ' + nSegments)
     let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
+    console.log('jbkjb ' + state.toString())
     clearTimeout(state.timeout)
     // Setting TimeOut to eventualy remove the client
     let file = state.segments
@@ -148,8 +151,9 @@ server.on('message', (msg, rinfo) => {
           deleteStateByIndex(stateIndex)
           console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
         }
-      }, 2000)
+      }, 5000)
       state.timeout = timer
+      saveState(state)
     })
   } else if (command === 'o') {
     // OBJECT START
@@ -219,6 +223,7 @@ function saveState (toSave) {
   states.forEach((state, i) => {
     if (state.type === toSave.type && state.port === toSave.port && state.host === toSave.host) {
       states[i] = toSave
+      console.log('savef ' + i)
     }
   })
 }
