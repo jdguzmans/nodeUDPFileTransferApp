@@ -28,7 +28,7 @@ server.on('message', (msg, rinfo) => {
   let msgString = msg.toString()
   let msgParts = msgString.split(' ')
   let command = msgParts[0]
-  console.log('server got: ' + msgString[0] + ' from ' + rinfo.address + ':' + rinfo.port)
+  console.log('server got: ' + msgString + ' from ' + rinfo.address + ':' + rinfo.port)
 
   if (command === 'l') {
     // LIST FILES
