@@ -42,21 +42,21 @@ exports.listRemoteFiles = () => {
   })
 }
 
-exports.getFile = (filename) => {
+exports.getFile = (filename, sizeMessage) => {
   client = dgram.createSocket('udp4')
   return new Promise((resolve, reject) => {
-    let message = Buffer.from('g ' + filename)
+    let message = Buffer.from('g ' + filename + ' ' + sizeMessage)
     client.send(message, 0, message.length, config.server.port, config.server.host, (err, bytes) => {
       if (err) reject(err)
       else {
-        let buffersize = null
+        let buffersize = Number(sizeMessage)
         let fileSize = null
         let filebuffers = null
         let totalsegments = null
         let beginTime = null
         let fileHash = null
         timery = setTimeout(() => {
-          console.log('Wating for jjj server time out')
+          console.log('Time out server did not answer')
           console.log('Plase re-try')
           client.close()
           resolve()
@@ -65,7 +65,7 @@ exports.getFile = (filename) => {
         let FIFO = new Dequeue()
         // msg with initial info
         client.on('message', (msg, rinfo) => {
-          if (buffersize === null) {
+          if (beginTime === null) {
             let msgString = msg.toString()
             let msgParts = msgString.split(' ')
             if (msgParts.length === 5 && msgParts[0] === 'f') {

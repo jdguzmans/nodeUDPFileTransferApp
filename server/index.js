@@ -2,18 +2,18 @@ const config = require('../config')
 const fs = require('fs')
 const dgram = require('dgram')
 const server = dgram.createSocket('udp4')
-const maxBufferSize = config.maxBufferSize
+// const maxBufferSize = config.maxBufferSize
 const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
-const fileDelay = config.fileDelay
+// const fileDelay = config.fileDelay
 const crypto = require('crypto')
 let hash = null
 let states = []
 
 server.on('listening', () => {
-  server.setSendBufferSize(maxBufferSize)
+  server.setSendBufferSize(65000)
   const address = server.address()
-  console.log('UDP server listening on ' + address.address + ':' + address.port + ' buffersize: ' + maxBufferSize + 'B')
+  console.log('UDP server listening on ' + address.address + ':' + address.port)
 })
 
 server.bind(config.server.port, config.server.host)
@@ -49,6 +49,7 @@ server.on('message', (msg, rinfo) => {
     })
   } else if (command === 'g') {
     let filename = msgParts[1]
+    let maxBufferSize = Number(msgParts[2])
     // if the client has ot
     fs.readFile('./files/' + filename, (err, file) => {
       if (err) throw err
@@ -60,7 +61,7 @@ server.on('message', (msg, rinfo) => {
       hash = null
       let beginTime = new Date().getTime()
       let ans = Buffer.from('f ' + file.length + ' ' + maxBufferSize + ' ' + beginTime.toString() + ' ' + hashFile)
-      console.log('size message ' + ans.length)
+      console.log('size message ' + ans.length + 'server buffersize' + server.getSendBufferSize())
       server.send(ans, 0, ans.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
         let dataTransfered = 0
@@ -82,7 +83,7 @@ server.on('message', (msg, rinfo) => {
           // console.log('size !! ' + segments[i].length)
           server.send(segments[i], 0, segments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
             if (err) throw err
-            // console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
+            console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
             i++
             cb()
           })
@@ -93,19 +94,19 @@ server.on('message', (msg, rinfo) => {
         (err) => {
           if (err) throw err
           let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-          if (stateIndex !== 0) {
+          if (stateIndex !== -1) {
             deleteStateByIndex(stateIndex)
             console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
           }
           // Setting TimeOut to eventualy remove the client
           let timer = setTimeout(() => {
-            console.log('clientdfdf ' + rinfo.address + ':' + rinfo.port + ' removed')
             let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-            if (stateIndex !== 0) {
+            console.log('timer se ejecuto con state ' + stateIndex)
+            if (stateIndex !== -1) {
               deleteStateByIndex(stateIndex)
               console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
             }
-          }, 5000)
+          }, 10000)
           // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
           // seve the state of the client
           states.push({
@@ -147,11 +148,12 @@ server.on('message', (msg, rinfo) => {
       // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
       let timer = setTimeout(() => {
         let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-        if (stateIndex !== 0) {
+        console.log('entro a timer de re envio !!! con index ' + stateIndex)
+        if (stateIndex !== -1) {
           deleteStateByIndex(stateIndex)
           console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
         }
-      }, 5000)
+      }, 8000)
       state.timeout = timer
       saveState(state)
     })
@@ -212,7 +214,7 @@ server.on('message', (msg, rinfo) => {
 })
 
 function getStateIndex (type, port, host) {
-  let ans = 0
+  let ans = -1
   states.forEach((state, i) => {
     if (state.type === type && state.port === port && state.host === host) ans = i
   })
