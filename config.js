@@ -2,11 +2,12 @@ exports.server = {
   port: 64556,
   host: '208.167.255.22'
 }
-// minBufferSize = 90
-// maxBufferSize = 65000
+
 exports.maxBufferSize = 65500
-exports.objectDelay = 50
-exports.fileDelay = 0.5
-// miliseconds
+exports.fileDelay = 10 / 1000000
+exports.fileConstantDelay = 100000
+
 exports.timeOutToWaitForServer = 5000
+
+exports.objectDelay = 50
 exports.objectConstantDelay = 5000

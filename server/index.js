@@ -7,6 +7,8 @@ const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
 // const fileDelay = config.fileDelay
 const objectConstantDelay = config.objectConstantDelay
+const fileDelay = config.fileDelay
+const fileConstantDelay = config.fileConstantDelay
 const crypto = require('crypto')
 let hash = null
 let states = []
@@ -108,7 +110,7 @@ server.on('message', (msg, rinfo) => {
                 deleteStateByIndex(stateIndex)
                 console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
               }
-            }, 10000)
+            }, dataSize * fileDelay + fileConstantDelay)
           // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
           // seve the state of the client
             states.push({
@@ -116,7 +118,8 @@ server.on('message', (msg, rinfo) => {
               host: rinfo.address,
               port: rinfo.port,
               timeout: timer,
-              segments: segments
+              segments: segments,
+              fileSize: dataSize
             })
             console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
           })
@@ -156,7 +159,7 @@ server.on('message', (msg, rinfo) => {
           deleteStateByIndex(stateIndex)
           console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
         }
-      }, 8000)
+      }, fileConstantDelay + state.fileSize * fileDelay)
       state.timeout = timer
       saveState(state)
     })
@@ -191,7 +194,6 @@ server.on('message', (msg, rinfo) => {
       }
 
       deleteStateByIndex(stateIndex)
-      console.log('borrando estado')
 
       // REPLY
       let ansS = 'oa ' + JSON.stringify(ans)
@@ -204,17 +206,19 @@ server.on('message', (msg, rinfo) => {
   } else if (command === 'oi') {
     // OBJECT ITERATION
     let stateIndex = getStateIndex('o', rinfo.port, rinfo.address)
-    let state = states[stateIndex]
-    let wStream = state.wStream
+    if (stateIndex !== -1) {
+      let state = states[stateIndex]
+      let wStream = state.wStream
 
-    let objS = msgParts[1].toString()
-    let obj = JSON.parse(objS)
-    let delay = (new Date().getTime() - obj.ts)
-    wStream.write(obj.n + ' ' + delay + ' ms\n')
+      let objS = msgParts[1].toString()
+      let obj = JSON.parse(objS)
+      let delay = (new Date().getTime() - obj.ts)
+      wStream.write(obj.n + ' ' + delay + ' ms\n')
 
-    state.received++
-    state.delaySum += delay
-    saveState(state)
+      state.received++
+      state.delaySum += delay
+      saveState(state)
+    }
   }
 })
 
