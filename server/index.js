@@ -136,6 +136,7 @@ server.on('message', (msg, rinfo) => {
     let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
     // console.log('jbkjb ' + state.toString())
     clearTimeout(state.timeout)
+    state.timeout = null
     saveState(state)
     // Setting TimeOut to eventualy remove the client
     let file = state.segments
