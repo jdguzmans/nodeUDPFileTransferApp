@@ -191,6 +191,7 @@ server.on('message', (msg, rinfo) => {
       }
 
       deleteStateByIndex(stateIndex)
+      console.log('borrando estado')
 
       // REPLY
       let ansS = 'oa ' + JSON.stringify(ans)
