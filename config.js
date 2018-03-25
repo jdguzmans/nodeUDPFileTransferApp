@@ -9,5 +9,5 @@ exports.fileConstantDelay = 100000
 
 exports.timeOutToWaitForServer = 5000
 
-exports.objectDelay = 10
+exports.objectDelay = 1
 exports.objectConstantDelay = 15000
