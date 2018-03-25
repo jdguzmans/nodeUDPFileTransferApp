@@ -136,6 +136,7 @@ server.on('message', (msg, rinfo) => {
     let state = states[getStateIndex('g', rinfo.port, rinfo.address)]
     // console.log('jbkjb ' + state.toString())
     clearTimeout(state.timeout)
+    saveState(state)
     // Setting TimeOut to eventualy remove the client
     let file = state.segments
     let i = 0
@@ -156,8 +157,6 @@ server.on('message', (msg, rinfo) => {
       // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
       let timr = setTimeout(() => {
         let stateIndex = getStateIndex('g', rinfo.port, rinfo.address)
-        console.log('Entro a gi numero de usuarios en states  re envio' + states.length)
-        console.log('Entro a timer de re envio !!! con index ' + stateIndex)
         console.log('client ' + rinfo.address + ':' + rinfo.port + ' for remove')
         if (stateIndex !== -1) {
           deleteStateByIndex(stateIndex)
