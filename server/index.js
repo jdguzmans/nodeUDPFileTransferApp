@@ -6,6 +6,9 @@ const server = dgram.createSocket('udp4')
 const doWhilst = require('async/doWhilst')
 const objectDelay = config.objectDelay
 // const fileDelay = config.fileDelay
+const objectConstantDelay = config.objectConstantDelay
+const fileDelay = config.fileDelay
+const fileConstantDelay = config.fileConstantDelay
 const crypto = require('crypto')
 let hash = null
 let states = []
@@ -27,7 +30,7 @@ server.on('message', (msg, rinfo) => {
   let msgString = msg.toString()
   let msgParts = msgString.split(' ')
   let command = msgParts[0]
-  console.log('server got: ' + msgString[0] + ' from ' + rinfo.address + ':' + rinfo.port)
+  console.log('server got: ' + msgString + ' from ' + rinfo.address + ':' + rinfo.port)
 
   if (command === 'l') {
     // LIST FILES
@@ -52,73 +55,76 @@ server.on('message', (msg, rinfo) => {
     let maxBufferSize = Number(msgParts[2])
     // if the client has ot
     fs.readFile('./files/' + filename, (err, file) => {
-      if (err) throw err
-      // msg file size buffer size and begin time
-      hash = crypto.createHash('sha256')
-      hash.update(file)
-      let hashFile = hash.digest('hex')
-      console.log('creating hash ... ' + hashFile)
-      hash = null
-      let beginTime = new Date().getTime()
-      let ans = Buffer.from('f ' + file.length + ' ' + maxBufferSize + ' ' + beginTime.toString() + ' ' + hashFile)
-      console.log('size message ' + ans.length + 'server buffersize' + server.getSendBufferSize())
-      server.send(ans, 0, ans.length, rinfo.port, rinfo.address, (err, bytes) => {
-        if (err) throw err
-        let dataTransfered = 0
-        let dataSize = file.length
-        let segments = []
-        console.log('preparing segmentation ... ')
-        let index = 100001
-        while (dataTransfered !== dataSize) {
-          let max = (dataTransfered + maxBufferSize - 6) < dataSize ? dataTransfered + maxBufferSize - 6 : dataSize
-          let buf1 = Buffer.from(Number(index).toString())
-          let buf2 = file.slice(dataTransfered, max)
-          let bufA = Buffer.concat([buf1, buf2], buf1.length + buf2.length)
-          segments.push(bufA)
-          dataTransfered = max
-          index++
-        }
-        let i = 0
-        doWhilst((cb) => {
-          // console.log('size !! ' + segments[i].length)
-          server.send(segments[i], 0, segments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
-            if (err) throw err
-            console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
-            i++
-            cb()
-          })
-        },
-        () => {
-          return i !== segments.length
-        },
-        (err) => {
+      if (err) console.log(err)
+      else {
+              // msg file size buffer size and begin time
+        hash = crypto.createHash('sha256')
+        hash.update(file)
+        let hashFile = hash.digest('hex')
+        console.log('creating hash ... ' + hashFile)
+        hash = null
+        let beginTime = new Date().getTime()
+        let ans = Buffer.from('f ' + file.length + ' ' + maxBufferSize + ' ' + beginTime.toString() + ' ' + hashFile)
+        console.log('size message ' + ans.length + 'server buffersize' + server.getSendBufferSize())
+        server.send(ans, 0, ans.length, rinfo.port, rinfo.address, (err, bytes) => {
           if (err) throw err
-          let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-          if (stateIndex !== -1) {
-            deleteStateByIndex(stateIndex)
-            console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
+          let dataTransfered = 0
+          let dataSize = file.length
+          let segments = []
+          console.log('preparing segmentation ... ')
+          let index = 100001
+          while (dataTransfered !== dataSize) {
+            let max = (dataTransfered + maxBufferSize - 6) < dataSize ? dataTransfered + maxBufferSize - 6 : dataSize
+            let buf1 = Buffer.from(Number(index).toString())
+            let buf2 = file.slice(dataTransfered, max)
+            let bufA = Buffer.concat([buf1, buf2], buf1.length + buf2.length)
+            segments.push(bufA)
+            dataTransfered = max
+            index++
           }
-          // Setting TimeOut to eventualy remove the client
-          let timer = setTimeout(() => {
+          let i = 0
+          doWhilst((cb) => {
+          // console.log('size !! ' + segments[i].length)
+            server.send(segments[i], 0, segments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
+              if (err) throw err
+              console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
+              i++
+              cb()
+            })
+          },
+          () => {
+            return i !== segments.length
+          },
+          (err) => {
+            if (err) throw err
             let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
-            console.log('timer se ejecuto con state ' + stateIndex)
             if (stateIndex !== -1) {
               deleteStateByIndex(stateIndex)
               console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
             }
-          }, 10000)
+          // Setting TimeOut to eventualy remove the client
+            let timer = setTimeout(() => {
+              let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
+              console.log('timer se ejecuto con state ' + stateIndex)
+              if (stateIndex !== -1) {
+                deleteStateByIndex(stateIndex)
+                console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
+              }
+            }, dataSize * fileDelay + fileConstantDelay)
           // console.log('file to send size ' + file.length + 'B buffer size: ' + maxBufferSize + 'B segments ' + segments.length)
           // seve the state of the client
-          states.push({
-            type: 'g',
-            host: rinfo.address,
-            port: rinfo.port,
-            timeout: timer,
-            segments: segments
+            states.push({
+              type: 'g',
+              host: rinfo.address,
+              port: rinfo.port,
+              timeout: timer,
+              segments: segments,
+              fileSize: dataSize
+            })
+            console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
           })
-          console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
         })
-      })
+      }
     })
   } else if (command === 'gi') {
     // client asking for lost segments
@@ -153,7 +159,7 @@ server.on('message', (msg, rinfo) => {
           deleteStateByIndex(stateIndex)
           console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
         }
-      }, 8000)
+      }, fileConstantDelay + state.fileSize * fileDelay)
       state.timeout = timer
       saveState(state)
     })
@@ -175,7 +181,7 @@ server.on('message', (msg, rinfo) => {
     })
 
     setTimeout(() => {
-      let stateIndex = getStateIndex('o', rinfo.address, rinfo.port)
+      let stateIndex = getStateIndex('o', rinfo.port, rinfo.address)
       let state = states[stateIndex]
 
       state.wStream.write('\naverage delay ' + state.delaySum / state.received + 'ms\n')
@@ -196,20 +202,23 @@ server.on('message', (msg, rinfo) => {
       server.send(ansB, 0, ansB.length, rinfo.port, rinfo.address, (err, bytes) => {
         if (err) throw err
       })
-    }, number * objectDelay)
+    }, objectConstantDelay + number * objectDelay)
   } else if (command === 'oi') {
     // OBJECT ITERATION
-    let state = states[getStateIndex('o', rinfo.port, rinfo.address)]
-    let wStream = state.wStream
+    let stateIndex = getStateIndex('o', rinfo.port, rinfo.address)
+    if (stateIndex !== -1) {
+      let state = states[stateIndex]
+      let wStream = state.wStream
 
-    let objS = msgParts[1].toString()
-    let obj = JSON.parse(objS)
-    let delay = (new Date().getTime() - obj.ts)
-    wStream.write(obj.n + ' ' + delay + ' ms\n')
+      let objS = msgParts[1].toString()
+      let obj = JSON.parse(objS)
+      let delay = (new Date().getTime() - obj.ts)
+      wStream.write(obj.n + ' ' + delay + ' ms\n')
 
-    state.received++
-    state.delaySum += delay
-    saveState(state)
+      state.received++
+      state.delaySum += delay
+      saveState(state)
+    }
   }
 })
 
@@ -225,7 +234,6 @@ function saveState (toSave) {
   states.forEach((state, i) => {
     if (state.type === toSave.type && state.port === toSave.port && state.host === toSave.host) {
       states[i] = toSave
-      console.log('savef ' + i)
     }
   })
 }
