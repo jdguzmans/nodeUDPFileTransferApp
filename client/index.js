@@ -36,11 +36,15 @@ function home () {
           type: 'Input',
           name: 'filename',
           message: 'Type the filename in the remote directory'
+        }, {
+          type: 'Input',
+          name: 'buffersize',
+          message: 'Type the Buffer size'
         }]
 
         inquirer.prompt(qs)
           .then(answer => {
-            logic.getFile(answer.filename)
+            logic.getFile(answer.filename, answer.buffersize)
               .then(() => {
                 home()
               })
