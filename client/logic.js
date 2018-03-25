@@ -275,7 +275,6 @@ exports.sendObjects = (number) => {
         // Object Iteration
         let toSendS = 'oi ' + JSON.stringify(toSendO)
         let toSendB = Buffer.from(toSendS)
-        console.log(' tamanio ' + toSendB.length)
         client.send(toSendB, 0, toSendB.length, config.server.port, config.server.host, (err, bytes) => {
           if (err) throw err
           i++
