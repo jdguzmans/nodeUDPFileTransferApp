@@ -88,7 +88,7 @@ server.on('message', (msg, rinfo) => {
           // console.log('size !! ' + segments[i].length)
             server.send(segments[i], 0, segments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
               if (err) throw err
-              // console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
+              console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
               i++
               cb()
             })
@@ -114,7 +114,7 @@ server.on('message', (msg, rinfo) => {
               }
             }, dataSize * fileDelay + fileConstantDelay)
             // console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (dataSize * fileDelay + fileConstantDelay) / 1000 + ' seconds')
-            // seve the state of the client
+            // save the state of the client
             states.push({
               type: 'g',
               host: rinfo.address,

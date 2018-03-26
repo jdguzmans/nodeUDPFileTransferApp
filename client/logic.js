@@ -98,7 +98,7 @@ exports.getFile = (filename, sizeMessage) => {
             timer2 = setTimeout(() => {
               console.log('Procesing ...')
               process(resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime)
-            }, (totalsegments > 100000) ? ((totalsegments > 900000) ? 11000 : 4000) : 500)
+            }, (totalsegments > 50000) ? ((totalsegments > 800000) ? 35000 : 25000) : 500)
             // console.log('a Timeout setted for server ' + Number(((totalsegments > 100000) ? ((totalsegments > 600000) ? 25000 : 5000) : 500)) / 1000 + ' second')
             // console.log('Receiving data ... ' + got)
             // got++
@@ -140,7 +140,6 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
       },
       (err) => {
         if (err) throw err
-        console.log(missing.length + ' lost segments')
       })
       cb()
     },
@@ -149,6 +148,7 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
     },
     (err) => {
       if (err) throw err
+      console.log(missing.length + ' lost segments')
       if (missing.length !== 0) {
         let buf1 = Buffer.from('gi ')
         let elemts = 1
