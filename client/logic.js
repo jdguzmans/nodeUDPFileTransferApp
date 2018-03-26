@@ -99,9 +99,9 @@ exports.getFile = (filename, sizeMessage) => {
               console.log('Procesing ...')
               process(resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime)
             }, (totalsegments > 100000) ? ((totalsegments > 900000) ? 11000 : 4000) : 500)
-            console.log('a Timeout setted for server ' + Number(((totalsegments > 100000) ? ((totalsegments > 600000) ? 25000 : 5000) : 500)) / 1000 + ' second')
-            console.log('Receiving data ... ' + got)
-            got++
+            // console.log('a Timeout setted for server ' + Number(((totalsegments > 100000) ? ((totalsegments > 600000) ? 25000 : 5000) : 500)) / 1000 + ' second')
+            // console.log('Receiving data ... ' + got)
+            // got++
           }
         })
       }
@@ -121,7 +121,7 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
     }
   }
   if (FIFO.length === 0) {
-    console.log(' 2 processing segments received ...')
+    console.log('Calculating lost segments ...')
     let total = 0
     let missing = []
     doWhilst((cb) => {
@@ -140,6 +140,7 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
       },
       (err) => {
         if (err) throw err
+        console.log(missing.length + ' lost segments')
       })
       cb()
     },
@@ -171,7 +172,7 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
         }
         let i = 0
         // let max = (filebuffers.length - i > 1000) ? i + 1000 : filebuffers.length
-        console.log('Asking for lost data ...')
+        console.log('Asking for ' + msgSegments.length + ' segments lost')
         doWhilst((b) => {
           client.send(msgSegments[i], 0, msgSegments[i].length, config.server.port, config.server.host, (err, bytes) => {
             if (err) throw err
@@ -196,7 +197,7 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
             client.close()
             resolve()
           }, 40000)
-          console.log('a Timeout R setted for server 40 seconds')
+          // console.log('a Timeout R setted for server 40 seconds')
         })
       } else {
         clearTimeout(timery)
