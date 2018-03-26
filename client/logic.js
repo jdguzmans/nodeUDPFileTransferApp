@@ -59,13 +59,14 @@ exports.getFile = (filename, sizeMessage) => {
         let totalsegments = null
         let beginTime = null
         let fileHash = null
-        let got = 0
+        let got = 1
         timery = setTimeout(() => {
           console.log('Time out server did not answer')
           console.log('Plase re-try')
           client.close()
           resolve()
         }, timeOut * 3)
+        console.log('a Timeout setted for server send info ' + timeOut * 3 / 1000 + ' seconds')
         let timer2 = null
         let FIFO = new Dequeue()
         // msg with initial info
@@ -86,7 +87,8 @@ exports.getFile = (filename, sizeMessage) => {
                 console.log('Plase re-try')
                 //  client.close()
                 // resolve()
-              }, 600000 + fileDelay * fileSize)
+              }, 60000 + fileDelay * fileSize)
+              console.log('a Timeout setted for server send data ' + Number((60000 + fileDelay * fileSize) / 1000) + ' seconds')
               console.log('file parameters recieved: buffer size : ' + buffersize + 'B , file size ' + fileSize + 'B segments ' + totalsegments + ' begin time transmition ' + new Date(beginTime))
             }
           } else {
@@ -96,9 +98,10 @@ exports.getFile = (filename, sizeMessage) => {
             timer2 = setTimeout(() => {
               console.log('Procesing ...')
               process(resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime)
-            }, (buffersize < 3000) ? buffersize + 6000 : 60000)
+            }, (totalsegments > 10000) ? 3000 : 500)
+            console.log('a Timeout setted for server ' + Number(((buffersize < 1000) ? 2000 : 500)) / 1000 + ' second')
+            console.log('Receiving data ... ' + got)
             got++
-            console.log('Receiving data ...' + got)
           }
         })
       }
@@ -168,9 +171,15 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
         }
         let i = 0
         // let max = (filebuffers.length - i > 1000) ? i + 1000 : filebuffers.length
+        console.log('Asking for lost data ...')
         doWhilst((b) => {
           client.send(msgSegments[i], 0, msgSegments[i].length, config.server.port, config.server.host, (err, bytes) => {
             if (err) throw err
+            if (buffersize >= 3000) {
+              client.send(msgSegments[i], 0, msgSegments[i].length, config.server.port, config.server.host, (err, bytes) => {
+                if (err) throw err
+              })
+            }
             i++
             b()
           })
@@ -180,12 +189,14 @@ function process (resolve, FIFO, filebuffers, filename, fileSize, reject, buffer
         },
         (err) => {
           if (err) throw err
+          clearTimeout(timery)
           timery = setTimeout(() => {
             console.log('Wating for s3rver time out')
             console.log('Plase re-try')
             client.close()
             resolve()
-          }, (buffersize < 3000) ? buffersize + 6000 : 17000)
+          }, 40000)
+          console.log('a Timeout R setted for server 40 seconds')
         })
       } else {
         clearTimeout(timery)
