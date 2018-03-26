@@ -98,8 +98,8 @@ exports.getFile = (filename, sizeMessage) => {
             timer2 = setTimeout(() => {
               console.log('Procesing ...')
               process(resolve, FIFO, filebuffers, filename, fileSize, reject, buffersize, fileHash, beginTime)
-            }, (totalsegments > 10000) ? 3000 : 500)
-            console.log('a Timeout setted for server ' + Number(((buffersize < 1000) ? 2000 : 500)) / 1000 + ' second')
+            }, (totalsegments > 100000) ? ((totalsegments > 900000) ? 11000 : 4000) : 500)
+            console.log('a Timeout setted for server ' + Number(((totalsegments > 100000) ? ((totalsegments > 600000) ? 25000 : 5000) : 500)) / 1000 + ' second')
             console.log('Receiving data ... ' + got)
             got++
           }

@@ -83,11 +83,12 @@ server.on('message', (msg, rinfo) => {
             index++
           }
           let i = 0
+          console.log('Start sending ' + segments.length + ' segments')
           doWhilst((cb) => {
           // console.log('size !! ' + segments[i].length)
             server.send(segments[i], 0, segments[i].length, rinfo.port, rinfo.address, (err, bytes) => {
               if (err) throw err
-              console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
+              // console.log('file segments sent ' + (i + 1) + ' of ' + segments.length)
               i++
               cb()
             })
@@ -97,6 +98,7 @@ server.on('message', (msg, rinfo) => {
           },
           (err) => {
             if (err) throw err
+            console.log('Finished sending the ' + segments.length + ' segments')
             let stateIndex = getStateIndex('g', rinfo.address, rinfo.port)
             if (stateIndex !== -1) {
               deleteStateByIndex(stateIndex)
@@ -111,7 +113,7 @@ server.on('message', (msg, rinfo) => {
                 console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
               }
             }, dataSize * fileDelay + fileConstantDelay)
-            console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (dataSize * fileDelay + fileConstantDelay) / 1000 + ' seconds')
+            // console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (dataSize * fileDelay + fileConstantDelay) / 1000 + ' seconds')
             // seve the state of the client
             states.push({
               type: 'g',
@@ -132,7 +134,7 @@ server.on('message', (msg, rinfo) => {
     // console.log('enter gi ' + segmentsIndex)
     let nSegments = JSON.parse('[' + segmentsIndex + ']')
     // console.log('enter gi ' + nSegments)
-    console.log('Entro a gi numero de usuarios en states ' + states.length)
+    // console.log('Entro a gi numero de usuarios en states ' + states.length)
     let index = getStateIndex('g', rinfo.port, rinfo.address)
     if (index !== -1) {
       let state = states[index]
@@ -157,7 +159,7 @@ server.on('message', (msg, rinfo) => {
       },
       (err) => {
         if (err) throw err
-        // console.log('file sent to ' + rinfo.address + ':' + rinfo.port)
+        console.log('finish file resent segments  to ' + rinfo.address + ':' + rinfo.port)
         let timr = setTimeout(() => {
           let stateIndex = getStateIndex('g', rinfo.port, rinfo.address)
           if (stateIndex !== -1) {
@@ -165,7 +167,7 @@ server.on('message', (msg, rinfo) => {
             console.log('client ' + rinfo.address + ':' + rinfo.port + ' removed')
           }
         }, fileConstantDelay + state.fileSize * fileDelay)
-        console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (fileConstantDelay + state.fileSize * fileDelay) / 1000 + ' seconds')
+        // console.log('a Timeout setted for user ' + rinfo.address + ':' + rinfo.port + ' for ' + (fileConstantDelay + state.fileSize * fileDelay) / 1000 + ' seconds')
         let s = state.timeout
         clearTimeout(s)
         state.timeout = timr
